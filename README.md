@@ -18,11 +18,13 @@ An OpenAI-compatible local API server for GitHub Copilot, with GitHub device log
 
 ## Install
 
+This project is distributed from GitHub releases and tags, not the npm registry.
+
 ```bash
-npm install -g @sanjaysingh/copilot-proxy
+npm install -g github:sanjaysingh/copilot-proxy#v0.2.0
 ```
 
-Install directly from GitHub:
+Install the latest `main` branch for development builds:
 
 ```bash
 npm install -g github:sanjaysingh/copilot-proxy#main
@@ -141,6 +143,23 @@ CLI flags override host and port:
 copilot-proxy serve --host 0.0.0.0 --port 8080
 ```
 
+Set environment variables before starting the service:
+
+```bash
+COPILOT_PROXY_DEFAULT_MODEL=gpt-4o \
+COPILOT_PROXY_SYSTEM_PROMPT="You are concise." \
+copilot-proxy serve
+```
+
+For persistent settings, export variables in your shell profile such as `~/.zshrc` or `~/.bashrc`. The service does not load `.env` files automatically, but you can source one before startup:
+
+```bash
+set -a
+source .env
+set +a
+copilot-proxy serve
+```
+
 If you bind to anything other than localhost, set `COPILOT_PROXY_API_KEY`.
 
 ## Endpoints
@@ -191,7 +210,7 @@ Users can install a pinned GitHub release tag:
 npm install -g github:sanjaysingh/copilot-proxy#v0.2.0
 ```
 
-When Release Please creates a GitHub Release, the same workflow runs tests, creates the npm tarball with `npm pack`, and attaches it to the release.
+When Release Please creates a GitHub Release, the same workflow runs tests, creates the package tarball with `npm pack`, and attaches it to the release. The repo does not publish packages to the npm registry.
 
 ## Development
 
