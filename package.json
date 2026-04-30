@@ -1,0 +1,48 @@
+{
+  "name": "@sanjaysingh/copilot-proxy",
+  "version": "0.1.0",
+  "description": "OpenAI-compatible local proxy for GitHub Copilot with device login and a bundled chat UI.",
+  "type": "module",
+  "bin": {
+    "copilot-proxy": "./bin/copilot-proxy.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    ".env.example",
+    "bin",
+    "public",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node ./bin/copilot-proxy.js serve",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "keywords": [
+    "openai",
+    "github-copilot",
+    "copilot",
+    "proxy",
+    "chatgpt",
+    "llm"
+  ],
+  "author": "Sanjay Singh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanjaysingh/copilot-proxy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sanjaysingh/copilot-proxy/issues"
+  },
+  "homepage": "https://github.com/sanjaysingh/copilot-proxy#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

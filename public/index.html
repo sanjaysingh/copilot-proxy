@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Copilot Proxy Chat</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121a2f;
+        --panel-2: #17213a;
+        --text: #e7edf7;
+        --muted: #97a5ba;
+        --accent: #67e8f9;
+        --danger: #fb7185;
+        --border: #26324f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, #172554, var(--bg) 36rem);
+        color: var(--text);
+        font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 1rem;
+        width: min(960px, calc(100vw - 2rem));
+        height: 100vh;
+        margin: 0 auto;
+        padding: 1rem 0;
+      }
+
+      header,
+      section,
+      form {
+        border: 1px solid var(--border);
+        background: rgba(18, 26, 47, 0.9);
+        border-radius: 18px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      input,
+      textarea,
+      button {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        color: var(--text);
+        background: var(--panel-2);
+        font: inherit;
+      }
+
+      input,
+      textarea {
+        padding: 0.75rem 0.85rem;
+      }
+
+      input {
+        min-width: 11rem;
+      }
+
+      button {
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        font-weight: 650;
+      }
+
+      button.primary {
+        border-color: transparent;
+        background: var(--accent);
+        color: #06111f;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      #status {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      #status.error {
+        color: var(--danger);
+      }
+
+      #authPanel {
+        display: none;
+        padding: 1rem;
+      }
+
+      #authPanel.visible {
+        display: block;
+      }
+
+      #chat {
+        overflow: auto;
+        padding: 1rem;
+      }
+
+      .message {
+        max-width: 85%;
+        margin: 0 0 1rem;
+        padding: 0.9rem 1rem;
+        white-space: pre-wrap;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .message.user {
+        margin-left: auto;
+        background: #1e3a8a;
+      }
+
+      .message.assistant {
+        margin-right: auto;
+        background: #111827;
+      }
+
+      .meta {
+        margin-bottom: 0.35rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        padding: 1rem;
+      }
+
+      textarea {
+        min-height: 4rem;
+        resize: vertical;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code {
+        display: inline-block;
+        padding: 0.2rem 0.4rem;
+        border-radius: 8px;
+        background: #050816;
+        font-weight: 700;
+      }
+
+      @media (max-width: 720px) {
+        main {
+          height: auto;
+          min-height: 100vh;
+        }
+
+        form {
+          grid-template-columns: 1fr;
+        }
+
+        .message {
+          max-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Copilot Proxy Chat</h1>
+          <div id="status">Checking authentication...</div>
+        </div>
+        <div class="controls">
+          <input id="model" value="gpt-4.1" aria-label="Model">
+          <input id="apiKey" type="password" placeholder="Proxy API key, if set" aria-label="Proxy API key">
+          <button id="login" type="button">Login</button>
+          <button id="logout" type="button">Logout</button>
+        </div>
+      </header>
+
+      <section id="authPanel">
+        <p>Authorize this proxy with GitHub, then come back here.</p>
+        <p><a id="verificationLink" href="#" target="_blank" rel="noreferrer">Open GitHub device login</a></p>
+        <p>Enter code <code id="userCode"></code></p>
+      </section>
+
+      <section id="chat" aria-live="polite"></section>
+
+      <form id="chatForm">
+        <textarea id="prompt" placeholder="Ask Copilot..." required></textarea>
+        <button class="primary" id="send" type="submit">Send</button>
+      </form>
+    </main>
+
+    <script>
+      const statusEl = document.querySelector("#status");
+      const authPanel = document.querySelector("#authPanel");
+      const verificationLink = document.querySelector("#verificationLink");
+      const userCode = document.querySelector("#userCode");
+      const chat = document.querySelector("#chat");
+      const form = document.querySelector("#chatForm");
+      const promptEl = document.querySelector("#prompt");
+      const modelEl = document.querySelector("#model");
+      const apiKeyEl = document.querySelector("#apiKey");
+      const sendButton = document.querySelector("#send");
+
+      const messages = [];
+
+      apiKeyEl.value = localStorage.getItem("copilotProxyApiKey") || "";
+      apiKeyEl.addEventListener("input", () => {
+        localStorage.setItem("copilotProxyApiKey", apiKeyEl.value);
+      });
+
+      function headers(extra = {}) {
+        const key = apiKeyEl.value.trim();
+        return {
+          "Content-Type": "application/json",
+          ...(key ? { Authorization: `Bearer ${key}` } : {}),
+          ...extra
+        };
+      }
+
+      function setStatus(text, isError = false) {
+        statusEl.textContent = text;
+        statusEl.classList.toggle("error", isError);
+      }
+
+      function addMessage(role, content = "") {
+        const wrapper = document.createElement("div");
+        wrapper.className = `message ${role}`;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = role;
+
+        const body = document.createElement("div");
+        body.textContent = content;
+
+        wrapper.append(meta, body);
+        chat.append(wrapper);
+        chat.scrollTop = chat.scrollHeight;
+        return body;
+      }
+
+      async function refreshStatus() {
+        try {
+          const response = await fetch("/api/auth/status", { headers: headers() });
+          if (!response.ok) throw new Error("Unable to read auth status");
+          const status = await response.json();
+          setStatus(status.authenticated ? `Authenticated via ${status.source}` : "Not authenticated");
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      async function startLogin() {
+        try {
+          setStatus("Starting GitHub device login...");
+          const response = await fetch("/api/auth/device/start", {
+            method: "POST",
+            headers: headers()
+          });
+          if (!response.ok) throw new Error((await response.json()).error?.message || "Unable to start login");
+          const device = await response.json();
+
+          authPanel.classList.add("visible");
+          verificationLink.href = device.verification_uri;
+          userCode.textContent = device.user_code;
+          window.open(device.verification_uri, "_blank", "noopener,noreferrer");
+
+          const interval = Math.max(device.interval || 5, 1) * 1000;
+          const expiresAt = Date.now() + (device.expires_in || 900) * 1000;
+
+          while (Date.now() < expiresAt) {
+            await new Promise((resolve) => setTimeout(resolve, interval));
+            const pollResponse = await fetch("/api/auth/device/poll", {
+              method: "POST",
+              headers: headers(),
+              body: JSON.stringify({ device_code: device.device_code })
+            });
+            const result = await pollResponse.json();
+            if (!pollResponse.ok) throw new Error(result.error?.message || "Login failed");
+            if (result.status === "success") {
+              authPanel.classList.remove("visible");
+              await refreshStatus();
+              return;
+            }
+            if (result.status === "expired") {
+              throw new Error("Device login expired");
+            }
+          }
+
+          throw new Error("Device login expired");
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      async function logout() {
+        await fetch("/api/auth/logout", { method: "POST", headers: headers() });
+        messages.length = 0;
+        chat.textContent = "";
+        await refreshStatus();
+      }
+
+      async function sendMessage(event) {
+        event.preventDefault();
+        const content = promptEl.value.trim();
+        if (!content) return;
+
+        promptEl.value = "";
+        sendButton.disabled = true;
+        addMessage("user", content);
+        messages.push({ role: "user", content });
+        const assistantBody = addMessage("assistant", "");
+        let assistantText = "";
+
+        try {
+          const response = await fetch("/v1/chat/completions", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({
+              model: modelEl.value.trim() || undefined,
+              stream: true,
+              messages
+            })
+          });
+
+          if (!response.ok || !response.body) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error?.message || "Chat request failed");
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
+
+            for (const eventText of events) {
+              for (const line of eventText.split("\n")) {
+                if (!line.startsWith("data:")) continue;
+                const data = line.slice(5).trim();
+                if (!data || data === "[DONE]") continue;
+                const chunk = JSON.parse(data);
+                const delta = chunk.choices?.[0]?.delta?.content || "";
+                assistantText += delta;
+                assistantBody.textContent = assistantText;
+                chat.scrollTop = chat.scrollHeight;
+              }
+            }
+          }
+
+          messages.push({ role: "assistant", content: assistantText });
+        } catch (error) {
+          assistantBody.textContent = error.message;
+          setStatus(error.message, true);
+        } finally {
+          sendButton.disabled = false;
+          promptEl.focus();
+        }
+      }
+
+      document.querySelector("#login").addEventListener("click", startLogin);
+      document.querySelector("#logout").addEventListener("click", logout);
+      form.addEventListener("submit", sendMessage);
+      refreshStatus();
+    </script>
+  </body>
+</html>
