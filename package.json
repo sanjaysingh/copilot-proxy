@@ -1,6 +1,6 @@
 {
   "name": "@sanjaysingh/copilot-proxy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenAI-compatible local proxy for GitHub Copilot with device login and a bundled chat UI.",
   "type": "module",
   "bin": {
