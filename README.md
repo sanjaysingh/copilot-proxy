@@ -22,6 +22,12 @@ An OpenAI-compatible local API server for GitHub Copilot, with GitHub device log
 npm install -g @sanjaysingh/copilot-proxy
 ```
 
+Install directly from GitHub:
+
+```bash
+npm install -g github:sanjaysingh/copilot-proxy#main
+```
+
 You can also run the project directly from a checkout:
 
 ```bash
@@ -169,11 +175,23 @@ const response = await client.chat.completions.create({
 console.log(response.choices[0].message.content);
 ```
 
-## Publishing
+## Releases
 
-The repository includes a GitHub Actions workflow that publishes to npm when manually triggered. Configure the repository secret `NPM_TOKEN`, then run the `Publish to npm` workflow from GitHub Actions. The CLI command remains `copilot-proxy` after installing the scoped package.
+Releases are automated with Release Please. Merge normal PRs into `main` with conventional commit-style squash titles:
 
-The workflow validates the package with `npm test`, performs a dry-run pack, and publishes with provenance.
+- `feat: add model picker` creates a minor release.
+- `fix: refresh expired Copilot token` creates a patch release.
+- `feat!: change auth config format` creates a major release.
+
+After a releasable commit lands on `main`, the `Release Please` workflow opens or updates a release PR. Merging that release PR updates `package.json`, `package-lock.json`, `.release-please-manifest.json`, and `CHANGELOG.md`, then creates a GitHub Release and tag such as `v0.2.0`.
+
+Users can install a pinned GitHub release tag:
+
+```bash
+npm install -g github:sanjaysingh/copilot-proxy#v0.2.0
+```
+
+When a GitHub Release is published, the `Release Assets` workflow runs tests, creates the npm tarball with `npm pack`, and attaches it to the release.
 
 ## Development
 
