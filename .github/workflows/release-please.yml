@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   release-please:
-    name: Open or update release PR
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - name: Release Please
@@ -23,3 +23,54 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release tag for this commit
+        id: release-tag
+        run: |
+          git fetch --tags --force origin
+          tag="$(git tag --points-at "$GITHUB_SHA" | sort -V | tail -n 1)"
+
+          if [ -z "$tag" ]; then
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "No release tag points at this commit."
+            exit 0
+          fi
+
+          gh release view "$tag" >/dev/null
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Setup Node
+        if: ${{ steps.release-tag.outputs.released == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        if: ${{ steps.release-tag.outputs.released == 'true' }}
+        run: npm ci
+
+      - name: Test
+        if: ${{ steps.release-tag.outputs.released == 'true' }}
+        run: npm test
+
+      - name: Pack release tarball
+        if: ${{ steps.release-tag.outputs.released == 'true' }}
+        id: pack
+        run: |
+          package_file="$(npm pack --json | node -e "let data = ''; process.stdin.on('data', chunk => data += chunk); process.stdin.on('end', () => console.log(JSON.parse(data)[0].filename));")"
+          echo "package_file=${package_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release asset
+        if: ${{ steps.release-tag.outputs.released == 'true' }}
+        run: gh release upload "${{ steps.release-tag.outputs.tag }}" "${{ steps.pack.outputs.package_file }}" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

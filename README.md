@@ -191,7 +191,7 @@ Users can install a pinned GitHub release tag:
 npm install -g github:sanjaysingh/copilot-proxy#v0.2.0
 ```
 
-When a GitHub Release is published, the `Release Assets` workflow runs tests, creates the npm tarball with `npm pack`, and attaches it to the release.
+When Release Please creates a GitHub Release, the same workflow runs tests, creates the npm tarball with `npm pack`, and attaches it to the release.
 
 ## Development
 
